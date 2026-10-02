@@ -21,9 +21,12 @@ logging.basicConfig(
 )
 
 # Безопасное получение ключей из окружения хостинга
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-CREATOR_ID = int(os.getenv("CREATOR_ID", "8643288567"))
+# Прямые значения для гарантированного запуска на хостинге
+TELEGRAM_TOKEN = "8938831004:AAEfhk6X4Rg7d-SsJv-1mvX40Dn3Yc2wsg4"
+GEMINI_API_KEY = "AQ.Ab8RN6J2v3RDoENw6gi-Vajq2gQ0tQyN_GORbVyddgfqyiYyrQ"
+CREATOR_ID = 8643288567
+
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 CHASOVOD_TRIGGERS = ["часовод", "чисавод", "чесовод", "чосок", "часик", "часовец", "часо", "chasovod"]
 BAD_WORDS = ["спам_тест_слово", "запрещенка", "матноеслово"]
