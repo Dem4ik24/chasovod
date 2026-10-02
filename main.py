@@ -12,8 +12,6 @@ from aiogram.enums import ParseMode
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from google.genai import types as genai_types
 from google import genai
-client = genai.Client(api_key="ТВОЙ_КЛЮЧ_СЮДА")
-
 
 logging.basicConfig(
     filename="chasovod_errors.log",
@@ -27,7 +25,7 @@ logging.basicConfig(
 TELEGRAM_TOKEN = "8938831004:AAEfhk6X4Rg7d-SsJv-1mvX40Dn3Yc2wsg4"
 CREATOR_ID = 8643288567
 
-client = genai.Client(api_key=GEMINI_API_KEY)
+client = genai.Client(api_key=AQ.Ab8RN6I1hnUlAeU6NR2S2EEX9vNDPt-WRfFGIjoXkRaw3_yS6Q)
 
 CHASOVOD_TRIGGERS = ["часовод", "чисавод", "чесовод", "чосок", "часик", "часовец", "часо", "chasovod"]
 BAD_WORDS = ["спам_тест_слово", "запрещенка", "матноеслово"]
