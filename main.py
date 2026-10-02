@@ -26,7 +26,7 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 CREATOR_ID = int(os.getenv("CREATOR_ID", "8643288567"))
 
-client = genai.Client(api_key=AQ.Ab8RN6I1hnUlAeU6NR2S2EEX9vNDPt-WRfFGIjoXkRaw3_yS6Q)
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 CHASOVOD_TRIGGERS = ["часовод", "чисавод", "чесовод", "чосок", "часик", "часовец", "часо", "chasovod"]
 BAD_WORDS = ["спам_тест_слово", "запрещенка", "матноеслово"]
