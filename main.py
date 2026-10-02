@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import sys
 import aiosqlite
 import time
@@ -19,10 +20,10 @@ logging.basicConfig(
     encoding="utf-8"
 )
 
-TELEGRAM_TOKEN = "8938831004:AAEfhk6X4Rg7d-SsJv-1mvX40Dn3Yc2wsg4"
-GEMINI_API_KEY = "AQ.Ab8RN6J2v3RDoENw6gi-Vajq2gQ0tQyN_GORbVyddgfqyiYyrQ"
-
-CREATOR_ID = 8643288567
+# Безопасное получение ключей из окружения хостинга
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+CREATOR_ID = int(os.getenv("CREATOR_ID", "8643288567"))
 
 CHASOVOD_TRIGGERS = ["часовод", "чисавод", "чесовод", "чосок", "часик", "часовец", "часо", "chasovod"]
 BAD_WORDS = ["спам_тест_слово", "запрещенка", "матноеслово"]
@@ -44,7 +45,6 @@ CACHE_TTL = 300
 client = genai.Client(api_key=GEMINI_API_KEY)
 dp = Dispatcher()
 
-# --- СТАТИСТИКА ПОТОКА В РЕАЛЬНОМ ВРЕМЕНИ ---
 message_timestamps = []
 
 ACTION_TITLES = {
@@ -67,18 +67,6 @@ def get_holiday_quests():
     }
 
 
-def log_event(event_type, user, text, details=""):
-    timestamp = time.strftime("%H:%M:%S", time.localtime())
-    print(f"\n[⏳ CHASOVOD LOG @ {timestamp}]")
-    print(f" ┣ 📌 Событие: {event_type}")
-    print(f" ┣ 👤 Юзер: @{user}")
-    print(f" ┣ 💬 Текст/Запрос: «{text}»")
-    if details:
-        print(f" ┗ ⚡ Детали: {details}")
-    print("-" * 50)
-
-
-# --- АСИНХРОННАЯ БАЗА ДАННЫХ (ВКЛЮЧАЯ ЗОЛОТУЮ ПАМЯТЬ И ИСТОРИЮ) ---
 async def init_db():
     async with aiosqlite.connect("chasovod.db") as db:
         await db.execute("""
@@ -100,7 +88,6 @@ async def init_db():
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        # Таблица для короткого контекста ИИ (память диалога)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS ai_chat_history (
                 user_id INTEGER,
@@ -108,7 +95,6 @@ async def init_db():
                 content TEXT
             )
         """)
-        # Таблица для «Золотой памяти» (долговременные факты о проектах)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS golden_memory (
                 user_id INTEGER,
@@ -182,15 +168,14 @@ async def cleanup_old_history():
         await db.commit()
 
 
-# --- РАБОТА С ИСТОРИЕЙ И ЗОЛОТОЙ ПАМЯТЬЮ ДЛЯ ИИ ---
 async def get_recent_ai_history(user_id: int):
     async with aiosqlite.connect("chasovod.db") as db:
         async with db.execute(
-                "SELECT role, content FROM ai_chat_history WHERE user_id = ? ORDER BY rowid DESC LIMIT 12",
-                (user_id,)
+            "SELECT role, content FROM ai_chat_history WHERE user_id = ? ORDER BY rowid DESC LIMIT 12",
+            (user_id,)
         ) as cursor:
             rows = await cursor.fetchall()
-
+    
     rows.reverse()
     chat_history = []
     for role, content in rows:
@@ -205,8 +190,7 @@ async def get_recent_ai_history(user_id: int):
 
 async def save_ai_message(user_id: int, role: str, content: str):
     async with aiosqlite.connect("chasovod.db") as db:
-        await db.execute("INSERT INTO ai_chat_history (user_id, role, content) VALUES (?, ?, ?)",
-                         (user_id, role, content))
+        await db.execute("INSERT INTO ai_chat_history (user_id, role, content) VALUES (?, ?, ?)", (user_id, role, content))
         await db.execute("""
             DELETE FROM ai_chat_history WHERE user_id = ? AND rowid NOT IN (
                 SELECT rowid FROM ai_chat_history WHERE user_id = ? ORDER BY rowid DESC LIMIT 20
@@ -273,8 +257,6 @@ async def get_absolute_all_stats():
 
     return total_users, total_db_msgs, unique_chats_db, titled_users, msgs_last_min, msgs_last_hour
 
-
-# --- КОМАНДЫ И ИНТЕРФЕЙСЫ ---
 
 @dp.message(lambda message: message.text in ["/leaderboard", "/top", "/титулы"])
 async def leaderboard_handler(message: Message) -> None:
@@ -501,7 +483,6 @@ async def local_stop_handler(message: Message) -> None:
         await message.answer("🟢 Часовод разморожен!")
 
 
-# --- УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК С КОНТЕКСТОМ, ЗОЛОТОЙ ПАМЯТЬЮ И ЛИМИТАМИ ---
 @dp.message()
 async def universal_handler(message: Message) -> None:
     try:
@@ -521,13 +502,11 @@ async def universal_handler(message: Message) -> None:
         username = message.from_user.username or message.from_user.first_name
         text_lower = message.text.lower()
 
-        # Команда для записи фактов в Золотую память: "Часовод, запомни: [текст]"
         if text_lower.startswith("часовод, запомни:") or text_lower.startswith("запомни:"):
             fact_to_save = message.text.split(":", 1)[1].strip()
             if fact_to_save:
                 await add_golden_memory(user_id, fact_to_save)
-                await message.answer(
-                    "Записал в шестеренки долговременной памяти. Не то чтобы я собирался этим дорожить.")
+                await message.answer("Записал в шестеренки долговременной памяти. Не то чтобы я собирался этим дорожить.")
                 return
 
         if chat_type == "private":
@@ -536,10 +515,9 @@ async def universal_handler(message: Message) -> None:
             await update_user_info(user_id, username)
             await message.bot.send_chat_action(chat_id=chat_id, action="typing")
 
-            # Подтягиваем историю и золотую память для ЛС
             history = await get_recent_ai_history(user_id)
             golden_facts = await get_golden_memories(user_id)
-
+            
             history.append(
                 genai_types.Content(
                     role="user",
@@ -549,14 +527,14 @@ async def universal_handler(message: Message) -> None:
 
             try:
                 system_instruction = (
-                        "Ты — Часовод, запертый злым магом Снапсом. Дерзкий, едкий, саркастичный. "
-                        "НИКОГДА не используй списки, длинные абзацы и структуру ИИ. "
-                        "Не используй эмодзи. Отвечай коротко, максимум 1-2 предложения."
-                        + golden_facts
+                    "Ты — Часовод, запертый злым магом Снапсом. Дерзкий, едкий, саркастичный. "
+                    "НИКОГДА не используй списки, длинные абзацы и структуру ИИ. "
+                    "Не используй эмодзи. Отвечай коротко, максимум 1-2 предложения."
+                    + golden_facts
                 )
 
                 response = client.models.generate_content(
-                    model="gemini-3.8-flash",
+                    model="gemini-2.5-flash",
                     contents=history,
                     config=genai_types.GenerateContentConfig(
                         system_instruction=system_instruction,
@@ -582,7 +560,7 @@ async def universal_handler(message: Message) -> None:
 
         current_time = time.time()
         last_action_time = user_action_timestamps.get(user_id, 0)
-        is_speedrunning = (current_time - last_action_time) < 10
+        is_speedrunning = (current_time - last_action_time) < 2
         user_action_timestamps[user_id] = current_time
 
         if is_speedrunning and any(trig in text_lower for trig in CHASOVOD_TRIGGERS):
@@ -638,7 +616,6 @@ async def universal_handler(message: Message) -> None:
         call_title = "Языческий говорун 🗣️"
         await add_layer_title(user_id, call_title)
 
-        # Подтягиваем историю и золотую память для группы
         history = await get_recent_ai_history(user_id)
         golden_facts = await get_golden_memories(user_id)
 
@@ -650,14 +627,14 @@ async def universal_handler(message: Message) -> None:
         )
 
         system_prompt = (
-                f"Ты — Часовод, запертый злым магом Снапсом. С тобой общается @{username}.\n"
-                f"Ему присвоен титул за вызов: {call_title}.\n"
-                "Отвечай дерзко, с сарказмом, коротко (1-2 предложения), без эмодзи и списков."
-                + golden_facts
+            f"Ты — Часовод, запертый злым магом Снапсом. С тобой общается @{username}.\n"
+            f"Ему присвоен титул за вызов: {call_title}.\n"
+            "Отвечай дерзко, с сарказмом, коротко (1-2 предложения), без эмодзи и списков."
+            + golden_facts
         )
 
         response = client.models.generate_content(
-            model="gemini-3.8-flash",
+            model="gemini-2.5-flash",
             contents=history,
             config=genai_types.GenerateContentConfig(
                 system_instruction=system_prompt,
@@ -678,7 +655,7 @@ async def universal_handler(message: Message) -> None:
 async def main() -> None:
     await init_db()
     print("=" * 50)
-    print("⏳ Часовод 18.1: ЗОЛОТАЯ ПАМЯТЬ И КОНТЕКСТ АКТИВНЫ!")
+    print("⏳ Часовод: СИСТЕМА УСПЕШНО ЗАПУЩЕНА!")
     print("=" * 50)
     bot = Bot(token=TELEGRAM_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     await dp.start_polling(bot)
