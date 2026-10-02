@@ -10,8 +10,10 @@ from aiogram import Bot, Dispatcher, html, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from google import genai
 from google.genai import types as genai_types
+from google import genai
+client = genai.Client(api_key="ТВОЙ_КЛЮЧ_СЮДА")
+
 
 logging.basicConfig(
     filename="chasovod_errors.log",
@@ -23,7 +25,6 @@ logging.basicConfig(
 # Безопасное получение ключей из окружения хостинга
 # Прямые значения для гарантированного запуска на хостинге
 TELEGRAM_TOKEN = "8938831004:AAEfhk6X4Rg7d-SsJv-1mvX40Dn3Yc2wsg4"
-GEMINI_API_KEY = "AQ.Ab8RN6J2v3RDoENw6gi-Vajq2gQ0tQyN_GORbVyddgfqyiYyrQ"
 CREATOR_ID = 8643288567
 
 client = genai.Client(api_key=GEMINI_API_KEY)
